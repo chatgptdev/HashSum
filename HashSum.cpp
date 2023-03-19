@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <filesystem>
 #include <stdexcept>
