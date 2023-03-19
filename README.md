@@ -1,5 +1,5 @@
 # HashSum
-C++ program to calculate the hash of files in a given directory and its subdirectories and outputing the resulat in a format similar to SHASUM tool.
+C++ program written almost entirely by ChatGPT 4.0 to calculate the hash of files in a given directory and its subdirectories and outputing the resulat in a format similar to SHASUM tool.
 The program is designed to be fast and efficient, taking advantage of multi-threading to process multiple files in parallel.
 
 ## Features
