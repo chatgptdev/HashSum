@@ -252,21 +252,52 @@ std::map<std::string, std::string> parseCommandLineArguments(int argc, char* arg
     return arguments;
 }
 
+void add_supported_hash_algorithm(const EVP_MD* md, const char* name, const char* name2, void* arg) {
+    std::vector<std::string>* algorithms = static_cast<std::vector<std::string>*>(arg);
+    // Only add pure hash algorithms (name2 is NULL or name and name2 are equal)
+    if(md && name && (!name2 || (0 == strcmp(name, name2)))) {
+        algorithms->push_back(name);
+    }
+}
 
 int main(int argc, char* argv[]) {
   try {
       std::map<std::string, std::string> arguments = parseCommandLineArguments(argc, argv);
 
       if (arguments.count("help") || arguments.count("inputPath") == 0) {
-          std::cerr << "Usage: " << argv[0] << " INPUT_PATH [-o OUTPUT_PATH] [-a HASH_ALGORITHM]\n";
+          std::vector<std::string> supported_algorithms;
+          EVP_MD_do_all_sorted(add_supported_hash_algorithm, &supported_algorithms);
+
+          std::cerr << "Usage: " << argv[0] << " INPUT_PATH [-o OUTPUT_PATH] [-a HASH_ALGORITHM] [-help]\n";
           std::cerr << "If OUTPUT_PATH is not specified, the output will be printed to the terminal\n";
           std::cerr << "HASH_ALGORITHM defaults to SHA256 if not specified.\n";
+          std::cerr << "Supported hash algorithms: ";
+          for (const auto& algorithm : supported_algorithms) {
+              std::cerr << algorithm << " ";
+          }
+          std::cerr << std::endl;
           return 1;
       }
 
       std::string inputPath = arguments["inputPath"];
       std::string outputPath = arguments.count("o") ? arguments["o"] : "";
       std::string hashAlgorithm = arguments.count("a") ? arguments["a"] : "SHA256";
+      
+
+      // Check if the hash algorithm is supported by OpenSSL
+      const EVP_MD* digest = EVP_get_digestbyname(hashAlgorithm.c_str());
+      if (!digest) {
+          std::vector<std::string> supported_algorithms;
+          EVP_MD_do_all_sorted(add_supported_hash_algorithm, &supported_algorithms);
+
+          std::cerr << "Error: Unsupported hash algorithm: " << hashAlgorithm << std::endl;
+          std::cerr << "Supported hash algorithms: ";
+          for (const auto& algorithm : supported_algorithms) {
+              std::cerr << algorithm << " ";
+          }
+          std::cerr << std::endl;
+          return 1;
+      }
 
       unsigned int numThreads = std::thread::hardware_concurrency();
       ThreadPool threadPool(numThreads);
