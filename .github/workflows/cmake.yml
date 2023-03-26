@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-latest]
+        os: [ubuntu-20.04, windows-latest, macOS-latest]
 
     steps:
     - uses: actions/checkout@v3
@@ -39,10 +39,10 @@ jobs:
     - name: Store artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: hashSum-${{ matrix.os }}
+        name: hashsum-${{ matrix.os }}
         path: |
-          ${{github.workspace}}/build/hashSum
-          ${{github.workspace}}/build/${{env.BUILD_TYPE}}/hashSum.exe
+          ${{github.workspace}}/build/hashsum
+          ${{github.workspace}}/build/${{env.BUILD_TYPE}}/hashsum.exe
           ${{github.workspace}}/build/*.deb
   release:
     needs: build
@@ -55,24 +55,34 @@ jobs:
     - name: Download artifacts
       uses: actions/download-artifact@v2
       with:
-        name: hashSum-ubuntu-20.04
+        name: hashsum-ubuntu-20.04
         path: artifacts/ubuntu
 
     - name: Download artifacts
       uses: actions/download-artifact@v2
       with:
-        name: hashSum-windows-latest
+        name: hashsum-windows-latest
         path: artifacts/windows
+        
+    - name: Download artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: hashsum-macOS-latest
+        path: artifacts/mac
         
     - name: Compress Ubuntu assets
       run: |
-        chmod +x artifacts/ubuntu/hashSum
-        tar czvf artifacts/ubuntu/hashsum-ubuntu-x86_64.tar.gz -C artifacts/ubuntu hashSum
+        chmod +x artifacts/ubuntu/hashsum
+        tar czvf artifacts/ubuntu/hashsum-ubuntu-x86_64.tar.gz -C artifacts/ubuntu hashsum
     - name: Compress Windows assets
       run: |
         sudo apt-get update
         sudo apt-get install -y zip
-        zip -j artifacts/windows/hashSum-windows.zip artifacts/windows/${{env.BUILD_TYPE}}/hashSum.exe
+        zip -j artifacts/windows/hashsum-windows.zip artifacts/windows/${{env.BUILD_TYPE}}/hashsum.exe
+    - name: Compress macOS assets
+      run: |
+        chmod +x artifacts/mac/hashsum
+        tar czvf artifacts/mac/hashsum-macOS.tar.gz -C artifacts/mac hashsum
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -110,6 +120,17 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.RELEASE_CREATION_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/windows/hashSum-windows.zip
-        asset_name: hashSum-windows.zip
+        asset_path: artifacts/windows/hashsum-windows.zip
+        asset_name: hashsum-windows.zip
+        asset_content_type: application/octet-stream
+        
+
+    - name: Upload Release Asset (macOS)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASE_CREATION_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/mac/hashsum-macOS.tar.gz
+        asset_name: hashsum-macOS.tar.gz
         asset_content_type: application/octet-stream
