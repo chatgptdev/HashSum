@@ -37,6 +37,7 @@
 #include <future>
 #include <mutex>
 #include <array>
+#include <sstream>
 #ifdef _WIN32
 #include "WindowsHash.h"
 #else
@@ -310,7 +311,7 @@ int main(int argc, char* argv[]) {
 
       if (arguments.count("help") || arguments.count("inputPath") == 0) {
 #ifdef _WIN32
-          auto supported_algorithms = WindowsHash::GetSupportedHashAlgorithms();
+          auto supported_algorithms = WindowsHash::GetSupportedAlgorithms();
 #else
           std::vector<std::string> supported_algorithms;
           EVP_MD_do_all_sorted(add_supported_hash_algorithm, &supported_algorithms);
@@ -334,7 +335,7 @@ int main(int argc, char* argv[]) {
       // Check if the hash algorithm is supported by WindowsHash
       WindowsHash hasher;
       if (!hasher.Init(hashAlgorithm)) {
-          auto supported_algorithms = WindowsHash::GetSupportedHashAlgorithms();
+          auto supported_algorithms = WindowsHash::GetSupportedAlgorithms();
 
           std::cerr << "Error: Unsupported hash algorithm: " << hashAlgorithm << std::endl;
           std::cerr << "Supported hash algorithms: ";
