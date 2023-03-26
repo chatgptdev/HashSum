@@ -67,7 +67,7 @@ jobs:
     - name: Compress Ubuntu assets
       run: |
         chmod +x artifacts/ubuntu/hashSum
-        tar czvf artifacts/ubuntu/hashSum-ubuntu-x86_64.tar.gz -C artifacts/ubuntu hashSum
+        tar czvf artifacts/ubuntu/hashsum-ubuntu-x86_64.tar.gz -C artifacts/ubuntu hashSum
     - name: Compress Windows assets
       run: |
         sudo apt-get update
@@ -90,8 +90,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.RELEASE_CREATION_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ubuntu/hashSum-ubuntu-x86_64.tar.gz
-        asset_name: hashSum-ubuntu-x86_64.tar.gz
+        asset_path: artifacts/ubuntu/hashsum-ubuntu-x86_64.tar.gz
+        asset_name: hashsum-ubuntu-x86_64.tar.gz
         asset_content_type: application/octet-stream
         
     - name: Upload Linux DEB package
@@ -100,8 +100,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.RELEASE_CREATION_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ubuntu/hashSum_x86_64.deb
-        asset_name: hashSum_x86_64.deb
+        asset_path: artifacts/ubuntu/hashsum_x86_64.deb
+        asset_name: hashsum_x86_64.deb
         asset_content_type: application/octet-stream
 
     - name: Upload Release Asset (Windows)
