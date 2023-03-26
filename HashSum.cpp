@@ -36,7 +36,11 @@
 #include <atomic>
 #include <future>
 #include <mutex>
+#ifdef _WIN32
+#include "WindowsHash.h"
+#else
 #include <openssl/evp.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -126,6 +130,41 @@ private:
 };
 
 std::string computeFileHash(const std::string& filePath, const std::string& hashAlgorithm) {
+#ifdef _WIN32
+    WindowsHash hasher;
+    if (!hasher.Init(hashAlgorithm)) {
+        throw std::runtime_error("Error: Unsupported hash algorithm.");
+    }
+
+    std::array<unsigned char, 4096> buffer;
+    std::vector<unsigned char> digest;
+
+    std::ifstream file(filePath, std::ios::in | std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("Error: Unable to open the input file.");
+    }
+
+    while (file) {
+        file.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+        std::streamsize bytesRead = file.gcount();
+        if (bytesRead > 0) {
+            if (!hasher.Update(buffer.data(), static_cast<std::size_t>(bytesRead))) {
+                throw std::runtime_error("Error: Unable to update the hash.");
+            }
+        }
+    }
+
+    if (!hasher.Final(digest)) {
+        throw std::runtime_error("Error: Unable to finalize the hash.");
+    }
+
+    std::stringstream ss;
+    for (unsigned char byte : digest) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+    }
+
+    return ss.str();
+#else
     const EVP_MD* md = EVP_get_digestbyname(hashAlgorithm.c_str());
     if (md == nullptr) {
         throw std::runtime_error("Error: Unsupported hash algorithm.");
@@ -175,6 +214,7 @@ std::string computeFileHash(const std::string& filePath, const std::string& hash
     }
 
     return ss.str();
+#endif
 }
 
 void processFile(const std::string& path, const fs::path& filePath, const std::string& hashAlgorithm, const std::string& outPath) {
@@ -253,6 +293,7 @@ std::map<std::string, std::string> parseCommandLineArguments(int argc, char* arg
     return arguments;
 }
 
+#ifndef _WIN32
 void add_supported_hash_algorithm(const EVP_MD* md, const char* name, const char* name2, void* arg) {
     std::vector<std::string>* algorithms = static_cast<std::vector<std::string>*>(arg);
     // Only add pure hash algorithms (name2 is NULL or name and name2 are equal)
@@ -260,15 +301,19 @@ void add_supported_hash_algorithm(const EVP_MD* md, const char* name, const char
         algorithms->push_back(name);
     }
 }
+#endif
 
 int main(int argc, char* argv[]) {
   try {
       std::map<std::string, std::string> arguments = parseCommandLineArguments(argc, argv);
 
       if (arguments.count("help") || arguments.count("inputPath") == 0) {
+#ifdef _WIN32
+          auto supported_algorithms = WindowsHash::GetSupportedHashAlgorithms();
+#else
           std::vector<std::string> supported_algorithms;
           EVP_MD_do_all_sorted(add_supported_hash_algorithm, &supported_algorithms);
-
+#endif
           std::cerr << "Usage: " << argv[0] << " INPUT_PATH [-o OUTPUT_PATH] [-a HASH_ALGORITHM] [-help]\n";
           std::cerr << "If OUTPUT_PATH is not specified, the output will be printed to the terminal\n";
           std::cerr << "HASH_ALGORITHM defaults to SHA256 if not specified.\n";
@@ -284,7 +329,21 @@ int main(int argc, char* argv[]) {
       std::string outputPath = arguments.count("o") ? arguments["o"] : "";
       std::string hashAlgorithm = arguments.count("a") ? arguments["a"] : "SHA256";
       
+#ifdef _WIN32
+      // Check if the hash algorithm is supported by WindowsHash
+      WindowsHash hasher;
+      if (!hasher.Init(hashAlgorithm)) {
+          auto supported_algorithms = WindowsHash::GetSupportedHashAlgorithms();
 
+          std::cerr << "Error: Unsupported hash algorithm: " << hashAlgorithm << std::endl;
+          std::cerr << "Supported hash algorithms: ";
+          for (const auto& algorithm : supported_algorithms) {
+              std::cerr << algorithm << " ";
+          }
+          std::cerr << std::endl;
+          return 1;
+      }
+#else
       // Check if the hash algorithm is supported by OpenSSL
       const EVP_MD* digest = EVP_get_digestbyname(hashAlgorithm.c_str());
       if (!digest) {
@@ -299,6 +358,7 @@ int main(int argc, char* argv[]) {
           std::cerr << std::endl;
           return 1;
       }
+#endif
 
       unsigned int numThreads = std::thread::hardware_concurrency();
       ThreadPool threadPool(numThreads);
