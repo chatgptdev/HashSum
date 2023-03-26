@@ -40,6 +40,8 @@
 #include <sstream>
 #ifdef _WIN32
 #include "WindowsHash.h"
+#elif __APPLE__
+#include "MacOSHash.h"
 #else
 #include <openssl/evp.h>
 #endif
@@ -132,8 +134,12 @@ private:
 };
 
 std::string computeFileHash(const std::string& filePath, const std::string& hashAlgorithm) {
+#if defined(_WIN32) || defined(__APPLE__)
 #ifdef _WIN32
     WindowsHash hasher;
+#else
+    macOSHash hasher;
+#endif
     if (!hasher.Init(hashAlgorithm)) {
         throw std::runtime_error("Error: Unsupported hash algorithm.");
     }
@@ -295,7 +301,7 @@ std::map<std::string, std::string> parseCommandLineArguments(int argc, char* arg
     return arguments;
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)
 void add_supported_hash_algorithm(const EVP_MD* md, const char* name, const char* name2, void* arg) {
     std::vector<std::string>* algorithms = static_cast<std::vector<std::string>*>(arg);
     // Only add pure hash algorithms (name2 is NULL or name and name2 are equal)
@@ -312,6 +318,8 @@ int main(int argc, char* argv[]) {
       if (arguments.count("help") || arguments.count("inputPath") == 0) {
 #ifdef _WIN32
           auto supported_algorithms = WindowsHash::GetSupportedAlgorithms();
+#elif __APPLE__
+          auto supported_algorithms = macOSHash::GetSupportedAlgorithms();
 #else
           std::vector<std::string> supported_algorithms;
           EVP_MD_do_all_sorted(add_supported_hash_algorithm, &supported_algorithms);
@@ -331,12 +339,19 @@ int main(int argc, char* argv[]) {
       std::string outputPath = arguments.count("o") ? arguments["o"] : "";
       std::string hashAlgorithm = arguments.count("a") ? arguments["a"] : "SHA256";
       
+#if defined(_WIN32) || defined(__APPLE__)
+      // Check if the hash algorithm is supported
 #ifdef _WIN32
-      // Check if the hash algorithm is supported by WindowsHash
       WindowsHash hasher;
+#else
+      macOSHash hasher;
+#endif
       if (!hasher.Init(hashAlgorithm)) {
+#ifdef _WIN32
           auto supported_algorithms = WindowsHash::GetSupportedAlgorithms();
-
+#else
+          auto supported_algorithms = macOSHash::GetSupportedAlgorithms();
+#endif
           std::cerr << "Error: Unsupported hash algorithm: " << hashAlgorithm << std::endl;
           std::cerr << "Supported hash algorithms: ";
           for (const auto& algorithm : supported_algorithms) {
