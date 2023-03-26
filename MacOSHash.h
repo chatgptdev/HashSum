@@ -32,7 +32,7 @@ private:
     CC_MD5_CTX md5_ctx;
     CC_SHA1_CTX sha1_ctx;
     CC_SHA256_CTX sha256_ctx;
-    CC_SHA384_CTX sha384_ctx;
+    CC_SHA512_CTX sha384_ctx;
     CC_SHA512_CTX sha512_ctx;
 
     enum HashAlgorithm {
