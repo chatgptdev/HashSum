@@ -1,29 +1,29 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(hashSum)
+project(hashsum)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(WIN32)
-    add_executable(hashSum HashSum.cpp WindowsHash.cpp)
-    target_link_libraries(hashSum bcrypt)
+    add_executable(hashsum HashSum.cpp WindowsHash.cpp)
+    target_link_libraries(hashsum bcrypt)
 elseif(APPLE)
-    add_executable(hashSum HashSum.cpp macOSHash.cpp)
+    add_executable(hashsum HashSum.cpp macOSHash.cpp)
     find_library(SECURITY Security)
     find_library(COREFOUNDATION CoreFoundation)
-    target_link_libraries(hashSum ${SECURITY} ${COREFOUNDATION})
+    target_link_libraries(hashsum ${SECURITY} ${COREFOUNDATION})
 else()
-    add_executable(hashSum HashSum.cpp)
+    add_executable(hashsum HashSum.cpp)
     find_package(OpenSSL REQUIRED)
     find_package(Threads REQUIRED)
-    target_link_libraries(hashSum PRIVATE OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
+    target_link_libraries(hashsum PRIVATE OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 endif()
 
 # Check if the system is Linux
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     # Install the binary to /usr/bin
-    install(TARGETS hashSum DESTINATION /usr/bin)
+    install(TARGETS hashsum DESTINATION /usr/bin)
 
     # Determine the Linux distribution using lsb_release
     execute_process(COMMAND lsb_release -is
