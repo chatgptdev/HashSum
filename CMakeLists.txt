@@ -5,6 +5,18 @@ project(hashsum)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Check if the system is macOS
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+    # Set the macOS target architectures to x64 and arm64 for universal binary
+    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
+endif()
+
+# Check if the system is Windows
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+    # Use the static C runtime
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 if(WIN32)
     add_executable(hashsum HashSum.cpp WindowsHash.cpp)
     target_link_libraries(hashsum bcrypt)
@@ -60,16 +72,4 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
 
     include(CPack)
-endif()
-
-# Check if the system is macOS
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-    # Set the macOS target architectures to x64 and arm64 for universal binary
-    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
-endif()
-
-# Check if the system is Windows
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-    # Use the static C runtime
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
