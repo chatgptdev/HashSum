@@ -8,6 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(WIN32)
     add_executable(hashSum HashSum.cpp WindowsHash.cpp)
     target_link_libraries(hashSum bcrypt)
+elseif(APPLE)
+    add_executable(hashSum HashSum.cpp macOSHash.cpp)
+    find_library(SECURITY Security)
+    find_library(COREFOUNDATION CoreFoundation)
+    target_link_libraries(hashSum ${SECURITY} ${COREFOUNDATION})
 else()
     add_executable(hashSum HashSum.cpp)
     find_package(OpenSSL REQUIRED)
@@ -55,6 +60,12 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
 
     include(CPack)
+endif()
+
+# Check if the system is macOS
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+    # Set the macOS target architectures to x64 and arm64 for universal binary
+    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
 endif()
 
 # Check if the system is Windows
