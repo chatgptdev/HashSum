@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 #include <CommonCrypto/CommonDigest.h>
-#include <CommonCrypto/CommonDigestSPI.h>
 
 class macOSHash {
 public:
