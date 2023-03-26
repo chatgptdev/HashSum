@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-latest, macOS-latest]
+        os: [ubuntu-20.04, windows-latest, macOS-11]
 
     steps:
     - uses: actions/checkout@v3
@@ -67,7 +67,7 @@ jobs:
     - name: Download artifacts
       uses: actions/download-artifact@v2
       with:
-        name: hashsum-macOS-latest
+        name: hashsum-macOS-11
         path: artifacts/mac
         
     - name: Compress Ubuntu assets
