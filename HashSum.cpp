@@ -36,6 +36,7 @@
 #include <atomic>
 #include <future>
 #include <mutex>
+#include <array>
 #ifdef _WIN32
 #include "WindowsHash.h"
 #else
