@@ -5,12 +5,15 @@ project(hashSum)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(OpenSSL REQUIRED)
-find_package(Threads REQUIRED)
-
 add_executable(hashSum HashSum.cpp)
 
-target_link_libraries(hashSum PRIVATE OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
+if(WIN32)
+    target_link_libraries(hashSum bcrypt)
+else()
+    find_package(OpenSSL REQUIRED)
+    find_package(Threads REQUIRED)
+    target_link_libraries(hashSum PRIVATE OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
+endif()
 
 # Check if the system is Linux
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
@@ -37,8 +40,8 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "libssl-dev")
 
         # Set the .deb file name to include the target architecture
-        set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
-        set(CPACK_DEBIAN_${CPACK_PACKAGE_NAME}_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_PROCESSOR}.deb")
+        #set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+        set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CMAKE_SYSTEM_PROCESSOR}")
     elseif(LINUX_DISTRIBUTION MATCHES "Fedora" OR LINUX_DISTRIBUTION MATCHES "CentOS" OR LINUX_DISTRIBUTION MATCHES "RedHat" OR LINUX_DISTRIBUTION MATCHES "openSUSE")
         # CPack configuration for generating .rpm package
         set(CPACK_GENERATOR "RPM")
@@ -47,8 +50,8 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         set(CPACK_RPM_PACKAGE_REQUIRES "openssl-devel")
 
         # Set the .rpm file name to include the target architecture
-        set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
-        set(CPACK_RPM_${CPACK_PACKAGE_NAME}_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_PROCESSOR}.rpm")
+        #set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
+        set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 
     include(CPack)
