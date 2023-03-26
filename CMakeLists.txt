@@ -5,11 +5,11 @@ project(hashSum)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(hashSum HashSum.cpp)
-
 if(WIN32)
+    add_executable(hashSum HashSum.cpp WindowsHash.cpp)
     target_link_libraries(hashSum bcrypt)
 else()
+    add_executable(hashSum HashSum.cpp)
     find_package(OpenSSL REQUIRED)
     find_package(Threads REQUIRED)
     target_link_libraries(hashSum PRIVATE OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
@@ -55,4 +55,10 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
 
     include(CPack)
+endif()
+
+# Check if the system is Windows
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+    # Use the static C runtime
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
