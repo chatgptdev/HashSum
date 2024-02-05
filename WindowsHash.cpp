@@ -117,3 +117,18 @@ std::vector<std::string> WindowsHash::GetSupportedAlgorithms() {
     return supportedAlgorithms;
 }
 
+size_t WindowsHash::GetDigestSize(const std::string& algorithm) {
+    if (algorithm == "md5") {
+        return 16;
+    } else if (algorithm == "sha1") {
+        return 20;
+    } else if (algorithm == "sha256") {
+        return 32;
+    } else if (algorithm == "sha384") {
+        return 48;
+    } else if (algorithm == "sha512") {
+        return 64;
+    } else {
+        return 0;
+    }
+}

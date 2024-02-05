@@ -35,6 +35,7 @@ public:
     bool Final(std::vector<unsigned char>& digest);
 
     static std::vector<std::string> GetSupportedAlgorithms();
+    static size_t GetDigestSize(const std::string& algorithm);
 
 private:
     bool initialized;

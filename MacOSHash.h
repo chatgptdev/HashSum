@@ -46,6 +46,22 @@ public:
       return supportedAlgorithms;
     }
 
+    static size_t GetDigestSize(const std::string& algorithm)
+    {
+      if (algorithm == "md5")
+        return CC_MD5_DIGEST_LENGTH;
+      else if (algorithm == "sha1")
+        return CC_SHA1_DIGEST_LENGTH;
+      else if (algorithm == "sha256")
+        return CC_SHA256_DIGEST_LENGTH;
+      else if (algorithm == "sha384")
+        return CC_SHA384_DIGEST_LENGTH;
+      else if (algorithm == "sha512")
+        return CC_SHA512_DIGEST_LENGTH;
+      else
+        return 0;
+    }
+
 private:
     CC_MD5_CTX md5_ctx;
     CC_SHA1_CTX sha1_ctx;

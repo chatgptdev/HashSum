@@ -37,6 +37,7 @@
 #include <future>
 #include <mutex>
 #include <array>
+#include <set>
 #include <sstream>
 #ifdef _WIN32
 #include "WindowsHash.h"
@@ -49,6 +50,11 @@
 namespace fs = std::filesystem;
 
 std::mutex outputMutex;
+std::map<std::string, std::string> expectedSums; // Global variable to store expected sums
+std::atomic_bool verificationErrorOccurred(false); // Global variable to track verification status
+
+std::mutex processedFilesMutex;
+std::set<std::string> processedFiles; // Tracks all processed files
 
 class ThreadPool {
 public:
@@ -132,6 +138,26 @@ private:
     std::condition_variable condition;
     std::atomic_bool stop{false};
 };
+
+size_t GetDigestSize(const std::string& algorithm) {
+    size_t digestSize = 0;
+#if defined(_WIN32) || defined(__APPLE__)
+#ifdef _WIN32
+    digestSize = WindowsHash::GetDigestSize(algorithm);
+#else
+    digestSize = macOSHash::GetDigestSize(algorithm);
+#endif
+#else
+    const EVP_MD* md = EVP_get_digestbyname(algorithm.c_str());
+    if (md != nullptr) {
+        digestSize = EVP_MD_size(md);
+    }
+#endif
+    if (digestSize == 0) {
+        throw std::runtime_error("Error: Unsupported hash algorithm.");
+    }
+    return digestSize;
+}
 
 std::string computeFileHash(const std::string& filePath, const std::string& hashAlgorithm) {
 #if defined(_WIN32) || defined(__APPLE__)
@@ -225,8 +251,28 @@ std::string computeFileHash(const std::string& filePath, const std::string& hash
 #endif
 }
 
+void writeOutput (const std::string& result, const std::string& outPath)
+{
+    // Lock the output mutex before writing to the output file
+    std::unique_lock<std::mutex> lock(outputMutex);
+
+    if (!outPath.empty()) {
+        std::ofstream outFile(outPath, std::ios::app);
+        if (!outFile.is_open()) {
+            throw std::runtime_error("Error: Unable to open the output file.");
+        }
+        outFile << result;
+        outFile.close();
+    } else {
+        std::cout << result;
+    }
+
+    // Unlock the output mutex
+    lock.unlock();
+}
+
 void processFile(const std::string& path, const fs::path& filePath, const std::string& hashAlgorithm, const std::string& outPath) {
-        auto hash = computeFileHash(filePath.string(), hashAlgorithm);
+        
         fs::path inputPathFs(path);
         fs::path relativePath;
 
@@ -236,24 +282,36 @@ void processFile(const std::string& path, const fs::path& filePath, const std::s
             relativePath = filePath.lexically_relative(inputPathFs);
         }
 
-        std::string result = hash + "  " + relativePath.string() + "\n";
-
-        // Lock the output mutex before writing to the output file
-        std::unique_lock<std::mutex> lock(outputMutex);
-
-        if (!outPath.empty()) {
-            std::ofstream outFile(outPath, std::ios::app);
-            if (!outFile.is_open()) {
-                throw std::runtime_error("Error: Unable to open the output file.");
+        if (!expectedSums.empty()) {
+            // check that the file is in the expectedSums map
+            if (expectedSums.find(relativePath.string()) == expectedSums.end()) {
+                std::string errorMessage = "Error: " + relativePath.string() + " is not in the sumfile.\n";
+                writeOutput(errorMessage, outPath);
+                verificationErrorOccurred = true;
+                return;
             }
-            outFile << result;
-            outFile.close();
-        } else {
-            std::cout << result;
         }
 
-        // Unlock the output mutex
-        lock.unlock();
+        auto hash = computeFileHash(filePath.string(), hashAlgorithm);
+
+        if (!expectedSums.empty()) {
+            // check that the computed hash matches the expected hash
+            if (hash != expectedSums[relativePath.string()]) {
+                std::string errorMessage = "Error: " + relativePath.string() + " does not match the expected hash.\n";
+                writeOutput(errorMessage, outPath);
+                verificationErrorOccurred = true;
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(processedFilesMutex);
+                processedFiles.insert(relativePath.string());
+            }
+        }
+        else
+        {
+            std::string result = hash + "  " + relativePath.string() + "\n";
+            writeOutput(result, outPath);
+        }
     }
 
 void computeDirectoryHash(const std::string& path, const std::string& hashAlgorithm, const std::string& outputPath, ThreadPool& threadPool) {
@@ -324,9 +382,10 @@ int main(int argc, char* argv[]) {
           std::vector<std::string> supported_algorithms;
           EVP_MD_do_all_sorted(add_supported_hash_algorithm, &supported_algorithms);
 #endif
-          std::cerr << "Usage: " << argv[0] << " INPUT_PATH [-o OUTPUT_PATH] [-a HASH_ALGORITHM] [-help]\n";
+          std::cerr << "Usage: " << argv[0] << " INPUT_PATH [-o OUTPUT_PATH] [-a HASH_ALGORITHM] [-v SUMFILE_PATH] [-help]\n";
           std::cerr << "If OUTPUT_PATH is not specified, the output will be printed to the terminal\n";
           std::cerr << "HASH_ALGORITHM defaults to SHA256 if not specified.\n";
+          std::cerr << "If -v is specified, the hash values will be verified against the checksums in SUMFILE_PATH\n";
           std::cerr << "Supported hash algorithms: ";
           for (const auto& algorithm : supported_algorithms) {
               std::cerr << algorithm << " ";
@@ -338,6 +397,7 @@ int main(int argc, char* argv[]) {
       std::string inputPath = arguments["inputPath"];
       std::string outputPath = arguments.count("o") ? arguments["o"] : "";
       std::string hashAlgorithm = arguments.count("a") ? arguments["a"] : "SHA256";
+      std::string sumfilePath = arguments.count("v") ? arguments["v"] : "";
       
 #if defined(_WIN32) || defined(__APPLE__)
       // Check if the hash algorithm is supported
@@ -377,14 +437,75 @@ int main(int argc, char* argv[]) {
       }
 #endif
 
+        if (!sumfilePath.empty()) {
+            std::ifstream sumfile(sumfilePath);
+            if (!sumfile.is_open()) {
+                std::cerr << "Error: Unable to open the sumfile." << std::endl;
+                return 1;
+            }
+    
+            std::string line;
+            while (std::getline(sumfile, line)) {
+                std::istringstream iss(line);
+                std::string hash, file;
+                if (!(iss >> hash >> file)) {
+                    std::cerr << "Error: Unable to parse the sumfile." << std::endl;
+                    return 1;
+                }
+                expectedSums[file] = hash;
+            }
+
+            sumfile.close();
+
+            // check that the size of the hash in the sumfile matches the size of the hash for the given algorithm
+            size_t digestSize = GetDigestSize(hashAlgorithm);
+            for (const auto& [file, hash] : expectedSums) {
+                if (hash.size() != 2 * digestSize) {
+                    std::cerr << "Error: The hash in the sumfile for " << file << " does not match the size of the hash for the given algorithm." << std::endl;
+                    return 1;
+                }
+            }
+        }
+
+      // if output path is specified, clear the file
+        if (!outputPath.empty()) {
+            std::ofstream outFile(outputPath, std::ios::out | std::ios::trunc);
+            if (!outFile.is_open()) {
+                std::cerr << "Error: Unable to open the output file." << std::endl;
+                return 1;
+            }
+            outFile.close();
+        }
+
       unsigned int numThreads = std::thread::hardware_concurrency();
       ThreadPool threadPool(numThreads);
 
- 
       computeDirectoryHash(inputPath, hashAlgorithm, outputPath, threadPool);
     
       // Wait for all tasks to finish
       threadPool.wait();
+
+      if (!sumfilePath.empty()) {
+
+        bool missingFilesFound = false;
+        for (const auto& [file, _] : expectedSums) {
+            if (processedFiles.find(file) == processedFiles.end()) {
+                std::cerr << "Error: File " << file << " referenced in the sum file is missing from the input path." << std::endl;
+                missingFilesFound = true;
+            }
+        }
+
+        if (missingFilesFound) {
+            verificationErrorOccurred = true; // Indicate that there was a verification error due to missing files
+        }
+
+        if (verificationErrorOccurred) {
+            writeOutput("Error: Verification failed.\n", outputPath);
+            return 1;
+        } else {
+            writeOutput("Verification succeeded.\n", outputPath);
+        }
+      }
         
 
     } catch (const std::exception& e) {
