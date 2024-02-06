@@ -37,7 +37,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 
     # Common CPack configuration
     set(CPACK_PACKAGE_NAME "hashsum")
-    set(CPACK_PACKAGE_VERSION "1.0.0")
+    set(CPACK_PACKAGE_VERSION "1.1.1")
     set(CPACK_PACKAGE_CONTACT "ChatGPTDev <chatgptdev@tuta.io>")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "HashSum is a tool to calculate the hash of files in a given directory and its subdirectories.")
 

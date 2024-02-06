@@ -5,6 +5,7 @@ The program is designed to be fast and efficient, taking advantage of multi-thre
 ## Features
 
 - Computes hash for all files in a given directory and its subdirectories
+- Verifies the hash of files against values stored in a given SUM file
 - Supports various hash algorithms, including SHA256 (default), SHA1, SHA512, MD5, etc.
 - Multithreaded implementation for faster processing on systems with multiple CPU cores
 - Can handle both file and directory input paths
